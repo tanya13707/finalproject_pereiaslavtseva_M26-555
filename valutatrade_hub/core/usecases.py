@@ -162,3 +162,38 @@ def buy(
 
     save_portfolio(portfolio)
     return portfolio
+
+
+def sell(
+    user: User,
+    currency_code: str,
+    amount: float,
+    rate: float,
+) -> Portfolio:
+    """Продать валюту и зачислить полученную сумму в USD."""
+    if not isinstance(currency_code, str) or not currency_code.strip():
+        raise ValueError("Укажите код валюты.")
+
+    currency_code = currency_code.strip().upper()
+    if currency_code == "USD":
+        raise ValueError("Для продажи выберите валюту, отличную от USD.")
+
+    for name, value in (("Количество", amount), ("Курс", rate)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{name} должно быть числом.")
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{name} должно быть положительным конечным числом.")
+
+    proceeds = amount * rate
+    if not math.isfinite(proceeds) or proceeds <= 0:
+        raise ValueError("Некорректная сумма продажи.")
+
+    portfolio = load_portfolio(user)
+    currency_wallet = portfolio.get_wallet(currency_code)
+    currency_wallet.withdraw(amount)
+
+    portfolio.add_currency("USD")
+    portfolio.get_wallet("USD").deposit(proceeds)
+
+    save_portfolio(portfolio)
+    return portfolio
