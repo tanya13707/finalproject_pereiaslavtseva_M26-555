@@ -77,6 +77,7 @@ class User:
         value = (password + self._salt).encode("utf-8")
         return hashlib.sha256(value).hexdigest()
 
+
 class Wallet:
     """Кошелёк для хранения средств в одной валюте."""
 
@@ -121,4 +122,59 @@ class Wallet:
         if isinstance(amount, bool) or not isinstance(amount, (int, float)):
             raise ValueError("Сумма должна быть числом.")
         if not math.isfinite(amount) or amount <= 0:
-            raise ValueError("Сумма должна быть конечным положительным числом.")    
+            raise ValueError("Сумма должна быть конечным положительным числом.")
+
+
+class Portfolio:
+    """Валютный портфель пользователя."""
+
+    def __init__(
+        self,
+        user: User,
+        wallets: dict[str, Wallet] | None = None,
+    ):
+        self._user = user
+        self._user_id = user.user_id
+        self._wallets = wallets.copy() if wallets is not None else {}
+
+    @property
+    def user(self) -> User:
+        return self._user
+
+    @property
+    def wallets(self) -> dict[str, Wallet]:
+        return self._wallets.copy()
+
+    def add_currency(self, currency_code: str) -> None:
+        """Создать кошелёк, если такой валюты ещё нет."""
+        if currency_code not in self._wallets:
+            self._wallets[currency_code] = Wallet(currency_code)
+
+    def get_wallet(self, currency_code: str) -> Wallet:
+        """Получить существующий кошелёк по коду валюты."""
+        if currency_code not in self._wallets:
+            raise ValueError(f"Кошелёк для валюты {currency_code} не найден.")
+        return self._wallets[currency_code]
+
+    def get_total_value(self, base_currency: str = "USD") -> float:
+        """Рассчитать стоимость по учебным фиксированным курсам."""
+        exchange_rates = {
+            "USD": 1.0,
+            "EUR": 1.1,
+            "GBP": 1.3,
+            "RUB": 0.01,
+            "BTC": 60000.0,
+            "ETH": 3000.0,
+            "SOL": 150.0,
+        }
+
+        if base_currency not in exchange_rates:
+            raise ValueError(f"Нет курса для валюты {base_currency}.")
+
+        total_usd = 0.0
+        for currency_code, wallet in self._wallets.items():
+            if currency_code not in exchange_rates:
+                raise ValueError(f"Нет курса для валюты {currency_code}.")
+            total_usd += wallet.balance * exchange_rates[currency_code]
+
+        return total_usd / exchange_rates[base_currency]
