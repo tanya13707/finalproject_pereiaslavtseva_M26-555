@@ -2,6 +2,7 @@
 
 import hashlib
 import hmac
+import math
 from datetime import datetime
 
 
@@ -75,3 +76,49 @@ class User:
         """Вычислить SHA-256 от пароля с солью."""
         value = (password + self._salt).encode("utf-8")
         return hashlib.sha256(value).hexdigest()
+
+class Wallet:
+    """Кошелёк для хранения средств в одной валюте."""
+
+    def __init__(self, currency_code: str, balance: float = 0.0):
+        self.currency_code = currency_code
+        self.balance = balance
+
+    @property
+    def balance(self) -> float:
+        return self._balance
+
+    @balance.setter
+    def balance(self, value: float) -> None:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError("Баланс должен быть числом.")
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("Баланс должен быть конечным неотрицательным числом.")
+        self._balance = float(value)
+
+    def deposit(self, amount: float) -> None:
+        """Пополнить кошелёк на положительную сумму."""
+        self._validate_amount(amount)
+        self.balance += amount
+
+    def withdraw(self, amount: float) -> None:
+        """Списать средства при достаточном балансе."""
+        self._validate_amount(amount)
+        if amount > self.balance:
+            raise ValueError(
+                f"Недостаточно средств: доступно {self.balance} "
+                f"{self.currency_code}, требуется {amount}."
+            )
+        self.balance -= amount
+
+    def get_balance_info(self) -> str:
+        """Вернуть код валюты и текущий баланс."""
+        return f"{self.currency_code}: {self.balance:.4f}"
+
+    @staticmethod
+    def _validate_amount(amount: float) -> None:
+        """Проверить, что сумма является положительным конечным числом."""
+        if isinstance(amount, bool) or not isinstance(amount, (int, float)):
+            raise ValueError("Сумма должна быть числом.")
+        if not math.isfinite(amount) or amount <= 0:
+            raise ValueError("Сумма должна быть конечным положительным числом.")    
