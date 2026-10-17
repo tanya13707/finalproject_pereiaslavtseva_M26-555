@@ -3,7 +3,7 @@
 import secrets
 from datetime import datetime, timezone
 
-from valutatrade_hub.core.models import User
+from valutatrade_hub.core.models import Portfolio, User, Wallet
 from valutatrade_hub.infra.database import DatabaseManager
 
 
@@ -83,3 +83,42 @@ def login(username: str, password: str) -> User:
             return user
 
     raise ValueError("Пользователь не найден.")
+
+
+def load_portfolio(user: User) -> Portfolio:
+    """Загрузить кошельки пользователя из JSON."""
+    db = DatabaseManager()
+    portfolios = db.read("portfolios.json", default=[])
+
+    for record in portfolios:
+        if record["user_id"] == user.user_id:
+            wallets = {}
+
+            for code, wallet_data in record["wallets"].items():
+                wallets[code] = Wallet(
+                    currency_code=code,
+                    balance=wallet_data["balance"],
+                )
+
+            return Portfolio(user, wallets)
+
+    raise ValueError("Портфель пользователя не найден.")
+
+
+def save_portfolio(portfolio: Portfolio) -> None:
+    """Сохранить текущие балансы кошельков пользователя."""
+    db = DatabaseManager()
+    portfolios = db.read("portfolios.json", default=[])
+
+    for record in portfolios:
+        if record["user_id"] == portfolio.user.user_id:
+            wallets = {}
+
+            for code, wallet in portfolio.wallets.items():
+                wallets[code] = {"balance": wallet.balance}
+
+            record["wallets"] = wallets
+            db.write("portfolios.json", portfolios)
+            return
+
+    raise ValueError("Портфель пользователя не найден.")
