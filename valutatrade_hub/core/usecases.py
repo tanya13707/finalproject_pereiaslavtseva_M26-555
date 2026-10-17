@@ -1,5 +1,6 @@
 """Операции с пользователями и валютными портфелями."""
 
+import math
 import secrets
 from datetime import datetime, timezone
 
@@ -122,3 +123,42 @@ def save_portfolio(portfolio: Portfolio) -> None:
             return
 
     raise ValueError("Портфель пользователя не найден.")
+
+
+def buy(
+    user: User,
+    currency_code: str,
+    amount: float,
+    rate: float,
+) -> Portfolio:
+    """Купить валюту за USD по переданному курсу."""
+    if not isinstance(currency_code, str) or not currency_code.strip():
+        raise ValueError("Укажите код валюты.")
+
+    currency_code = currency_code.strip().upper()
+    if currency_code == "USD":
+        raise ValueError("Для покупки выберите валюту, отличную от USD.")
+
+    for name, value in (("Количество", amount), ("Курс", rate)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{name} должно быть числом.")
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{name} должно быть положительным конечным числом.")
+
+    cost = amount * rate
+    if not math.isfinite(cost) or cost <= 0:
+        raise ValueError("Некорректная стоимость покупки.")
+
+    portfolio = load_portfolio(user)
+
+    if "USD" not in portfolio.wallets:
+        raise ValueError("Для покупки нужен USD-кошелёк со средствами.")
+
+    usd_wallet = portfolio.get_wallet("USD")
+    usd_wallet.withdraw(cost)
+
+    portfolio.add_currency(currency_code)
+    portfolio.get_wallet(currency_code).deposit(amount)
+
+    save_portfolio(portfolio)
+    return portfolio
