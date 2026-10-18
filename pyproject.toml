@@ -8,6 +8,9 @@ dependencies = [
     "requests>=2.34.2",
 ]
 
+[project.scripts]
+valutatrade = "valutatrade_hub.cli.interface:main"
+
 [dependency-groups]
 dev = [
     "ruff>=0.17.1",

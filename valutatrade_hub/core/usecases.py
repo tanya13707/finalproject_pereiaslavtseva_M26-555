@@ -197,3 +197,27 @@ def sell(
 
     save_portfolio(portfolio)
     return portfolio
+
+
+def get_portfolio_summary(user: User, base_currency: str = "USD") -> dict:
+    """Получить балансы кошельков и стоимость портфеля."""
+    base_currency = base_currency.strip().upper()
+    portfolio = load_portfolio(user)
+    values = portfolio.get_wallet_values(base_currency)
+
+    wallets = []
+    for code, wallet in portfolio.wallets.items():
+        wallets.append(
+            {
+                "currency_code": code,
+                "balance": wallet.balance,
+                "value": values[code],
+            }
+        )
+
+    return {
+        "username": user.username,
+        "base_currency": base_currency,
+        "wallets": wallets,
+        "total": sum(values.values()),
+    }
