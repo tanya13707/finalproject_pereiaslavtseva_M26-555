@@ -5,6 +5,7 @@ import secrets
 from datetime import datetime, timezone
 
 from valutatrade_hub.core.models import Portfolio, User, Wallet
+from valutatrade_hub.core.utils import get_usd_rate, load_rates
 from valutatrade_hub.infra.database import DatabaseManager
 
 
@@ -129,9 +130,8 @@ def buy(
     user: User,
     currency_code: str,
     amount: float,
-    rate: float,
 ) -> Portfolio:
-    """Купить валюту за USD по переданному курсу."""
+    """Купить валюту за USD по курсу из локального кеша."""
     if not isinstance(currency_code, str) or not currency_code.strip():
         raise ValueError("Укажите код валюты.")
 
@@ -139,6 +139,7 @@ def buy(
     if currency_code == "USD":
         raise ValueError("Для покупки выберите валюту, отличную от USD.")
 
+    rate = get_usd_rate(currency_code, load_rates())
     for name, value in (("Количество", amount), ("Курс", rate)):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError(f"{name} должно быть числом.")
@@ -168,15 +169,16 @@ def sell(
     user: User,
     currency_code: str,
     amount: float,
-    rate: float,
 ) -> Portfolio:
-    """Продать валюту и зачислить полученную сумму в USD."""
+    """Продать валюту за USD по курсу из локального кеша."""
     if not isinstance(currency_code, str) or not currency_code.strip():
         raise ValueError("Укажите код валюты.")
 
     currency_code = currency_code.strip().upper()
     if currency_code == "USD":
         raise ValueError("Для продажи выберите валюту, отличную от USD.")
+
+    rate = get_usd_rate(currency_code, load_rates())
 
     for name, value in (("Количество", amount), ("Курс", rate)):
         if isinstance(value, bool) or not isinstance(value, (int, float)):

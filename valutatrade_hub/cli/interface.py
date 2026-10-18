@@ -4,7 +4,13 @@ import argparse
 import shlex
 import sys
 
-from valutatrade_hub.core.usecases import get_portfolio_summary, login, register
+from valutatrade_hub.core.usecases import (
+    buy,
+    get_portfolio_summary,
+    login,
+    register,
+    sell,
+)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -26,6 +32,14 @@ def create_parser() -> argparse.ArgumentParser:
         "show-portfolio", help="Показать портфель пользователя"
     )
     portfolio_parser.add_argument("--base", default="USD")
+
+    buy_parser = commands.add_parser("buy", help="Купить валюту")
+    buy_parser.add_argument("--currency", required=True)
+    buy_parser.add_argument("--amount", type=float, required=True)
+
+    sell_parser = commands.add_parser("sell", help="Продать валюту")
+    sell_parser.add_argument("--currency", required=True)
+    sell_parser.add_argument("--amount", type=float, required=True)
 
     return parser
 
@@ -96,7 +110,30 @@ def main() -> None:
                             )
 
                         print(f"ИТОГО: {summary['total']:,.2f} {base}")
+            elif args.command == "buy":
+                if current_user is None:
+                    print("Сначала выполните login")
+                else:
+                    portfolio = buy(
+                        current_user, args.currency, args.amount
+                    )
+                    code = args.currency.strip().upper()
+                    wallet = portfolio.get_wallet(code)
+                    print(f"Покупка выполнена: {args.amount:.4f} {code}")
+                    print(f"Баланс {code}: {wallet.balance:.4f}")
 
+            elif args.command == "sell":
+                if current_user is None:
+                    print("Сначала выполните login")
+                else:
+                    portfolio = sell(
+                        current_user, args.currency, args.amount
+                    )
+                    code = args.currency.strip().upper()
+                    wallet = portfolio.get_wallet(code)
+                    print(f"Продажа выполнена: {args.amount:.4f} {code}")
+                    print(f"Баланс {code}: {wallet.balance:.4f}")
+                    
         except (ValueError, OSError) as error:
             print(f"Ошибка: {error}")
         except (EOFError, KeyboardInterrupt):
