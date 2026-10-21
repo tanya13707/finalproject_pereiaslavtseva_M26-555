@@ -1,5 +1,7 @@
 """Вспомогательные функции для работы с курсами валют."""
 
+from datetime import datetime, timezone
+
 from valutatrade_hub.infra.database import DatabaseManager
 
 
@@ -28,3 +30,17 @@ def get_usd_rate(currency_code: str, pairs: dict) -> float:
         raise ValueError(f"Курс {pair} должен быть положительным конечным числом.")
 
     return float(rate)
+
+
+def is_rate_fresh(updated_at: str, ttl_seconds: int) -> bool:
+    """Проверить, что возраст курса меньше срока актуальности."""
+    try:
+        updated = datetime.fromisoformat(updated_at)
+    except (TypeError, ValueError):
+        return False
+
+    if updated.tzinfo is None:
+        updated = updated.replace(tzinfo=timezone.utc)
+
+    age = (datetime.now(timezone.utc) - updated).total_seconds()
+    return 0 <= age < ttl_seconds

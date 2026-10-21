@@ -5,8 +5,9 @@ import secrets
 from datetime import datetime, timezone
 
 from valutatrade_hub.core.models import Portfolio, User, Wallet
-from valutatrade_hub.core.utils import get_usd_rate, load_rates
+from valutatrade_hub.core.utils import get_usd_rate, is_rate_fresh, load_rates
 from valutatrade_hub.infra.database import DatabaseManager
+from valutatrade_hub.infra.settings import SettingsLoader
 
 
 def register(username: str, password: str) -> User:
@@ -222,4 +223,52 @@ def get_portfolio_summary(user: User, base_currency: str = "USD") -> dict:
         "base_currency": base_currency,
         "wallets": wallets,
         "total": sum(values.values()),
+    }
+
+
+def get_rate(from_code: str, to_code: str) -> dict:
+    """Получить курс из локального кеша с проверкой свежести."""
+    codes = []
+
+    for code in (from_code, to_code):
+        if not isinstance(code, str) or not code.strip():
+            raise ValueError("Укажите код валюты.")
+
+        code = code.strip().upper()
+        if not 2 <= len(code) <= 5 or not code.isascii() or not code.isalpha():
+            raise ValueError(f"Некорректный код валюты '{code}'.")
+
+        codes.append(code)
+
+    from_code, to_code = codes
+    pairs = load_rates()
+    ttl = SettingsLoader().get("rates_ttl")
+    timestamps = []
+
+    for code in set(codes):
+        if code == "USD":
+            continue
+
+        get_usd_rate(code, pairs)
+        updated_at = pairs[f"{code}_USD"].get("updated_at")
+
+        if not is_rate_fresh(updated_at, ttl):
+            raise ValueError(
+                f"Курс {code}→USD устарел или дата обновления некорректна. "
+                "Необходимо обновить курсы."
+            )
+
+        updated = datetime.fromisoformat(updated_at)
+        if updated.tzinfo is None:
+            updated = updated.replace(tzinfo=timezone.utc)
+        timestamps.append(updated)
+
+    rate = get_usd_rate(from_code, pairs) / get_usd_rate(to_code, pairs)
+    updated = min(timestamps) if timestamps else datetime.now(timezone.utc)
+
+    return {
+        "from_currency": from_code,
+        "to_currency": to_code,
+        "rate": rate,
+        "updated_at": updated.isoformat(),
     }

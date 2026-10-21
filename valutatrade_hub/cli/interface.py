@@ -7,6 +7,7 @@ import sys
 from valutatrade_hub.core.usecases import (
     buy,
     get_portfolio_summary,
+    get_rate,
     login,
     register,
     sell,
@@ -40,6 +41,13 @@ def create_parser() -> argparse.ArgumentParser:
     sell_parser = commands.add_parser("sell", help="Продать валюту")
     sell_parser.add_argument("--currency", required=True)
     sell_parser.add_argument("--amount", type=float, required=True)
+
+    rate_parser = commands.add_parser(
+        "get-rate",
+        help="Получить курс одной валюты к другой",
+    )
+    rate_parser.add_argument("--from", dest="from_code", required=True)
+    rate_parser.add_argument("--to", dest="to_code", required=True)
 
     return parser
 
@@ -133,7 +141,18 @@ def main() -> None:
                     wallet = portfolio.get_wallet(code)
                     print(f"Продажа выполнена: {args.amount:.4f} {code}")
                     print(f"Баланс {code}: {wallet.balance:.4f}")
-                    
+
+            elif args.command == "get-rate":
+                result = get_rate(args.from_code, args.to_code)
+                from_code = result["from_currency"]
+                to_code = result["to_currency"]
+                rate = result["rate"]
+
+                print(
+                    f"Курс {from_code}→{to_code}: {rate:.8f} "
+                    f"(обновлено: {result['updated_at']})"
+                )
+                print(f"Обратный курс {to_code}→{from_code}: {1 / rate:.8f}")
         except (ValueError, OSError) as error:
             print(f"Ошибка: {error}")
         except (EOFError, KeyboardInterrupt):
