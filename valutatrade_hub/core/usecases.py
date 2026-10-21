@@ -140,7 +140,7 @@ def buy(
     if currency_code == "USD":
         raise ValueError("Для покупки выберите валюту, отличную от USD.")
 
-    rate = get_usd_rate(currency_code, load_rates())
+    rate = get_rate(currency_code, "USD")["rate"]
     for name, value in (("Количество", amount), ("Курс", rate)):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError(f"{name} должно быть числом.")
@@ -179,7 +179,7 @@ def sell(
     if currency_code == "USD":
         raise ValueError("Для продажи выберите валюту, отличную от USD.")
 
-    rate = get_usd_rate(currency_code, load_rates())
+    rate = get_rate(currency_code, "USD")["rate"]
 
     for name, value in (("Количество", amount), ("Курс", rate)):
         if isinstance(value, bool) or not isinstance(value, (int, float)):

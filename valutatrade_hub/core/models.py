@@ -5,6 +5,9 @@ import hmac
 import math
 from datetime import datetime
 
+from valutatrade_hub.core.utils import get_usd_rate, is_rate_fresh, load_rates
+from valutatrade_hub.infra.settings import SettingsLoader
+
 
 class User:
     """Пользователь с паролем, сохранённым в виде хеша с солью."""
@@ -157,32 +160,32 @@ class Portfolio:
         return self._wallets[currency_code]
 
     def get_wallet_values(self, base_currency: str = "USD") -> dict[str, float]:
-        """Рассчитать стоимость каждого кошелька в базовой валюте."""
-        exchange_rates = {
-            "USD": 1.0,
-            "EUR": 1.1,
-            "GBP": 1.3,
-            "RUB": 0.01,
-            "BTC": 60000.0,
-            "ETH": 3000.0,
-            "SOL": 150.0,
-        }
+        """Рассчитать стоимость кошельков по свежим курсам из кеша."""
+        if not isinstance(base_currency, str) or not base_currency.strip():
+            raise ValueError("Укажите базовую валюту.")
 
         base_currency = base_currency.strip().upper()
-        if base_currency not in exchange_rates:
-            raise ValueError(f"Неизвестная базовая валюта '{base_currency}'.")
+        pairs = load_rates()
+        ttl = SettingsLoader().get("rates_ttl")
+        codes = set(self._wallets) | {base_currency}
+        usd_rates = {}
+
+        for code in codes:
+            usd_rates[code] = get_usd_rate(code, pairs)
+
+            if code == "USD":
+                continue
+
+            updated_at = pairs[f"{code}_USD"].get("updated_at")
+            if not is_rate_fresh(updated_at, ttl):
+                raise ValueError(
+                    f"Курс {code}→USD устарел или дата обновления некорректна. "
+                    "Необходимо обновить курсы."
+                )
 
         values = {}
-        for currency_code, wallet in self._wallets.items():
-            if currency_code not in exchange_rates:
-                raise ValueError(f"Нет курса для валюты {currency_code}.")
-
-            values[currency_code] = (
-                wallet.balance
-                * exchange_rates[currency_code]
-                / exchange_rates[base_currency]
-            )
-
+        for code, wallet in self._wallets.items():
+            values[code] = wallet.balance * usd_rates[code] / usd_rates[base_currency]
         return values
 
     def get_total_value(self, base_currency: str = "USD") -> float:
