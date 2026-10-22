@@ -5,6 +5,7 @@ import hmac
 import math
 from datetime import datetime
 
+from valutatrade_hub.core.exceptions import InsufficientFundsError
 from valutatrade_hub.core.utils import get_usd_rate, is_rate_fresh, load_rates
 from valutatrade_hub.infra.settings import SettingsLoader
 
@@ -109,9 +110,10 @@ class Wallet:
         """Списать средства при достаточном балансе."""
         self._validate_amount(amount)
         if amount > self.balance:
-            raise ValueError(
-                f"Недостаточно средств: доступно {self.balance} "
-                f"{self.currency_code}, требуется {amount}."
+            raise InsufficientFundsError(
+                available=self.balance,
+                required=amount,
+                code=self.currency_code,
             )
         self.balance -= amount
 
