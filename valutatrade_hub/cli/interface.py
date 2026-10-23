@@ -4,7 +4,10 @@ import argparse
 import shlex
 import sys
 
-from valutatrade_hub.core.exceptions import InsufficientFundsError
+from valutatrade_hub.core.exceptions import (
+    CurrencyNotFoundError,
+    InsufficientFundsError,
+)
 from valutatrade_hub.core.usecases import (
     buy,
     get_portfolio_summary,
@@ -154,6 +157,9 @@ def main() -> None:
                     f"(обновлено: {result['updated_at']})"
                 )
                 print(f"Обратный курс {to_code}→{from_code}: {1 / rate:.8f}")
+        except CurrencyNotFoundError as error:
+            print(error)
+            print("Поддерживаемые валюты: USD, EUR, GBP, RUB, BTC, ETH, SOL.")
         except InsufficientFundsError as error:
             print(error)
         except (ValueError, OSError) as error:

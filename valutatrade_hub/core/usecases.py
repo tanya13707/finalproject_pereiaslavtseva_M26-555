@@ -4,6 +4,7 @@ import math
 import secrets
 from datetime import datetime, timezone
 
+from valutatrade_hub.core.currencies import get_currency
 from valutatrade_hub.core.models import Portfolio, User, Wallet
 from valutatrade_hub.core.utils import get_usd_rate, is_rate_fresh, load_rates
 from valutatrade_hub.infra.database import DatabaseManager
@@ -133,10 +134,8 @@ def buy(
     amount: float,
 ) -> Portfolio:
     """Купить валюту за USD по курсу из локального кеша."""
-    if not isinstance(currency_code, str) or not currency_code.strip():
-        raise ValueError("Укажите код валюты.")
 
-    currency_code = currency_code.strip().upper()
+    currency_code = get_currency(currency_code).code
     if currency_code == "USD":
         raise ValueError("Для покупки выберите валюту, отличную от USD.")
 
@@ -172,10 +171,8 @@ def sell(
     amount: float,
 ) -> Portfolio:
     """Продать валюту за USD по курсу из локального кеша."""
-    if not isinstance(currency_code, str) or not currency_code.strip():
-        raise ValueError("Укажите код валюты.")
-
-    currency_code = currency_code.strip().upper()
+   
+    currency_code = get_currency(currency_code).code
     if currency_code == "USD":
         raise ValueError("Для продажи выберите валюту, отличную от USD.")
 
@@ -228,19 +225,9 @@ def get_portfolio_summary(user: User, base_currency: str = "USD") -> dict:
 
 def get_rate(from_code: str, to_code: str) -> dict:
     """Получить курс из локального кеша с проверкой свежести."""
-    codes = []
-
-    for code in (from_code, to_code):
-        if not isinstance(code, str) or not code.strip():
-            raise ValueError("Укажите код валюты.")
-
-        code = code.strip().upper()
-        if not 2 <= len(code) <= 5 or not code.isascii() or not code.isalpha():
-            raise ValueError(f"Некорректный код валюты '{code}'.")
-
-        codes.append(code)
-
-    from_code, to_code = codes
+    from_code = get_currency(from_code).code
+    to_code = get_currency(to_code).code
+    codes = [from_code, to_code]
     pairs = load_rates()
     ttl = SettingsLoader().get("rates_ttl")
     timestamps = []
