@@ -16,6 +16,7 @@ from valutatrade_hub.core.usecases import (
     register,
     sell,
 )
+from valutatrade_hub.logging_config import setup_logging
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -58,6 +59,7 @@ def create_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     """Обрабатывать команды и хранить текущую сессию."""
+    setup_logging()
     parser = create_parser()
     current_user = None
     single_command = bool(sys.argv[1:])

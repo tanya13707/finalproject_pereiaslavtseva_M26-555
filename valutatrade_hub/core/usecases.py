@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from valutatrade_hub.core.currencies import get_currency
 from valutatrade_hub.core.models import Portfolio, User, Wallet
 from valutatrade_hub.core.utils import get_usd_rate, is_rate_fresh, load_rates
+from valutatrade_hub.decorators import log_action, set_action_details
 from valutatrade_hub.infra.database import DatabaseManager
 from valutatrade_hub.infra.settings import SettingsLoader
 
@@ -128,6 +129,7 @@ def save_portfolio(portfolio: Portfolio) -> None:
     raise ValueError("Портфель пользователя не найден.")
 
 
+@log_action("BUY", verbose=True)
 def buy(
     user: User,
     currency_code: str,
@@ -140,6 +142,7 @@ def buy(
         raise ValueError("Для покупки выберите валюту, отличную от USD.")
 
     rate = get_rate(currency_code, "USD")["rate"]
+    set_action_details(currency_code=currency_code, rate=rate)
     for name, value in (("Количество", amount), ("Курс", rate)):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError(f"{name} должно быть числом.")
@@ -151,6 +154,12 @@ def buy(
         raise ValueError("Некорректная стоимость покупки.")
 
     portfolio = load_portfolio(user)
+    set_action_details(
+        before={
+            code: wallet.balance
+            for code, wallet in portfolio.wallets.items()
+        }
+    )
 
     if "USD" not in portfolio.wallets:
         raise ValueError("Для покупки нужен USD-кошелёк со средствами.")
@@ -162,9 +171,16 @@ def buy(
     portfolio.get_wallet(currency_code).deposit(amount)
 
     save_portfolio(portfolio)
+    set_action_details(
+        after={
+            code: wallet.balance
+            for code, wallet in portfolio.wallets.items()
+        }
+    )
     return portfolio
 
 
+@log_action("SELL", verbose=True)
 def sell(
     user: User,
     currency_code: str,
@@ -177,6 +193,7 @@ def sell(
         raise ValueError("Для продажи выберите валюту, отличную от USD.")
 
     rate = get_rate(currency_code, "USD")["rate"]
+    set_action_details(currency_code=currency_code, rate=rate)
 
     for name, value in (("Количество", amount), ("Курс", rate)):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -189,6 +206,12 @@ def sell(
         raise ValueError("Некорректная сумма продажи.")
 
     portfolio = load_portfolio(user)
+    set_action_details(
+        before={
+            code: wallet.balance
+            for code, wallet in portfolio.wallets.items()
+        }
+    )
     currency_wallet = portfolio.get_wallet(currency_code)
     currency_wallet.withdraw(amount)
 
@@ -196,6 +219,12 @@ def sell(
     portfolio.get_wallet("USD").deposit(proceeds)
 
     save_portfolio(portfolio)
+    set_action_details(
+        after={
+            code: wallet.balance
+            for code, wallet in portfolio.wallets.items()
+        }
+    )
     return portfolio
 
 
