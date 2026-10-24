@@ -149,14 +149,10 @@ def buy(
     if currency_code == "USD":
         raise ValueError("Для покупки выберите валюту, отличную от USD.")
 
+    Wallet._validate_amount(amount)
     rate = get_rate(currency_code, "USD")["rate"]
     set_action_details(currency_code=currency_code, rate=rate)
-    for name, value in (("Количество", amount), ("Курс", rate)):
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise ValueError(f"{name} должно быть числом.")
-        if not math.isfinite(value) or value <= 0:
-            raise ValueError(f"{name} должно быть положительным конечным числом.")
-
+    
     cost = amount * rate
     if not math.isfinite(cost) or cost <= 0:
         raise ValueError("Некорректная стоимость покупки.")
@@ -206,14 +202,10 @@ def sell(
     if currency_code == "USD":
         raise ValueError("Для продажи выберите валюту, отличную от USD.")
 
+    Wallet._validate_amount(amount)
     rate = get_rate(currency_code, "USD")["rate"]
     set_action_details(currency_code=currency_code, rate=rate)
 
-    for name, value in (("Количество", amount), ("Курс", rate)):
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise ValueError(f"{name} должно быть числом.")
-        if not math.isfinite(value) or value <= 0:
-            raise ValueError(f"{name} должно быть положительным конечным числом.")
 
     proceeds = amount * rate
     if not math.isfinite(proceeds) or proceeds <= 0:

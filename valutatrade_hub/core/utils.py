@@ -11,6 +11,8 @@ def load_rates() -> dict:
         "rates.json",
         default={"pairs": {}, "last_refresh": None},
     )
+    if not isinstance(data, dict) or not isinstance(data.get("pairs"), dict):
+        raise ValueError("Некорректный формат кеша курсов.")
     return data["pairs"]
 
 
@@ -22,7 +24,10 @@ def get_usd_rate(currency_code: str, pairs: dict) -> float:
     pair = f"{currency_code}_USD"
     if pair not in pairs:
         raise ValueError(f"Нет сохранённого курса {pair}.")
-    rate = pairs[pair]["rate"]
+    item = pairs[pair]
+    if not isinstance(item, dict):
+        raise ValueError(f"Некорректные данные курса {pair}.")
+    rate = item.get("rate")
 
     if isinstance(rate, bool) or not isinstance(rate, (int, float)):
         raise ValueError(f"Некорректный курс {pair}.")
