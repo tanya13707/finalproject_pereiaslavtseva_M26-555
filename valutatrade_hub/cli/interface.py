@@ -4,6 +4,8 @@ import argparse
 import shlex
 import sys
 
+from prettytable import PrettyTable
+
 from valutatrade_hub.core.exceptions import (
     ApiRequestError,
     CurrencyNotFoundError,
@@ -13,6 +15,7 @@ from valutatrade_hub.core.usecases import (
     buy,
     get_portfolio_summary,
     get_rate,
+    get_rates_summary,
     login,
     register,
     sell,
@@ -65,6 +68,24 @@ def create_parser() -> argparse.ArgumentParser:
         help="Обновить только выбранный источник",
     )
 
+    show_rates_parser = commands.add_parser(
+        "show-rates",
+        help="Показать курсы из кеша",
+    )
+    show_rates_parser.add_argument(
+        "--currency",
+        help="Показать курс выбранной валюты",
+    )
+    show_rates_parser.add_argument(
+        "--top",
+        type=int,
+        help="Показать самые дорогие криптовалюты",
+    )
+    show_rates_parser.add_argument(
+        "--base",
+        default="USD",
+        help="Базовая валюта, по умолчанию USD",
+    )
     return parser
 
 
@@ -183,6 +204,42 @@ def main() -> None:
                     )
                 else:
                     print("Обновление завершено успешно.")
+            elif args.command == "show-rates":
+                summary = get_rates_summary(
+                    currency=args.currency,
+                    top=args.top,
+                    base=args.base,
+                )
+                print(
+                    "Курсы из кеша. "
+                    f"Последнее обновление: {summary['last_refresh']}"
+                )
+
+                table = PrettyTable()
+                table.field_names = [
+                    "Пара",
+                    "Курс",
+                    "Обновлено",
+                    "Статус",
+                ]
+
+                for row in summary["rates"]:
+                    table.add_row(
+                        [
+                            row["pair"],
+                            f"{row['rate']:.8f}",
+                            row["updated_at"],
+                            "Свежий" if row["fresh"] else "Устарел",
+                        ]
+                    )
+
+                if summary["rates"]:
+                    print(table)
+                else:
+                    print("Нет курсов для выбранных фильтров.")
+
+                if any(not row["fresh"] for row in summary["rates"]):
+                    print("Есть устаревшие курсы. Выполните update-rates.")            
 
         except ApiRequestError as error:
             print(error)

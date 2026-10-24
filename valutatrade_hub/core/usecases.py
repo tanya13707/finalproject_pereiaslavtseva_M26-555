@@ -4,7 +4,7 @@ import math
 import secrets
 from datetime import datetime, timezone
 
-from valutatrade_hub.core.currencies import get_currency
+from valutatrade_hub.core.currencies import CryptoCurrency, get_currency
 from valutatrade_hub.core.models import Portfolio, User, Wallet
 from valutatrade_hub.core.utils import get_usd_rate, is_rate_fresh, load_rates
 from valutatrade_hub.decorators import log_action, set_action_details
@@ -15,6 +15,7 @@ from valutatrade_hub.parser_service.api_clients import (
     ExchangeRateApiClient,
 )
 from valutatrade_hub.parser_service.config import ParserConfig
+from valutatrade_hub.parser_service.storage import RatesStorage
 from valutatrade_hub.parser_service.updater import RatesUpdater
 
 
@@ -314,3 +315,82 @@ def update_rates(source: str | None = None) -> dict:
 
     updater = RatesUpdater(clients=clients, config=config)
     return updater.run_update()
+
+
+def get_rates_summary(
+    currency: str | None = None,
+    top: int | None = None,
+    base: str = "USD",
+) -> dict:
+    """Подготовить курсы из кеша для вывода."""
+    base = get_currency(base).code
+
+    if currency is not None:
+        currency = get_currency(currency).code
+
+    if top is not None:
+        if isinstance(top, bool) or not isinstance(top, int) or top <= 0:
+            raise ValueError("Количество валют должно быть целым числом больше 0.")
+
+    cache = RatesStorage().read_cache()
+    pairs = cache["pairs"]
+
+    if not pairs:
+        raise ValueError(
+            "Локальный кеш курсов пуст. "
+            "Выполните 'update-rates', чтобы загрузить данные."
+        )
+
+    base_rate = get_usd_rate(base, pairs)
+    ttl = SettingsLoader().get("rates_ttl")
+    codes = {
+        pair.removesuffix("_USD")
+        for pair in pairs
+        if pair.endswith("_USD")
+    }
+
+    if currency is not None:
+        if currency != "USD" and currency not in codes:
+            raise ValueError(f"Курс для '{currency}' не найден в кеше.")
+        codes = {currency}
+
+    rows = []
+
+    for code in sorted(codes):
+        coin = get_currency(code)
+
+        if top is not None and not isinstance(coin, CryptoCurrency):
+            continue
+
+        rate = get_usd_rate(code, pairs) / base_rate
+        dates = []
+
+        for checked_code in {code, base}:
+            if checked_code != "USD":
+                dates.append(pairs[f"{checked_code}_USD"].get("updated_at"))
+
+        fresh = all(is_rate_fresh(date, ttl) for date in dates)
+        updated = (
+            min(RatesStorage._parse_time(date) for date in dates).isoformat()
+            if dates
+            else datetime.now(timezone.utc).isoformat()
+        )
+
+        rows.append(
+            {
+                "pair": f"{code}_{base}",
+                "rate": rate,
+                "updated_at": updated,
+                "fresh": fresh,
+            }
+        )
+
+    if top is not None:
+        rows.sort(key=lambda row: row["rate"], reverse=True)
+        rows = rows[:top]
+
+    return {
+        "base": base,
+        "last_refresh": cache["last_refresh"],
+        "rates": rows,
+    }
