@@ -364,3 +364,5 @@ uv build
 просмотр портфеля и курсов, обновление курсов и обработка ошибок.
 
 [![Запись работы приложения](https://asciinema.org/a/XmiVrJwJTi5o2v4k.svg)](https://asciinema.org/a/XmiVrJwJTi5o2v4k)
+
+[Посмотреть запись на asciinema](https://asciinema.org/a/XmiVrJwJTi5o2v4k)
