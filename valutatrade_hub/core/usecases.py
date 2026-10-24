@@ -141,7 +141,7 @@ def buy(
     user: User,
     currency_code: str,
     amount: float,
-) -> Portfolio:
+) -> dict:
     """Купить валюту за USD по курсу из локального кеша."""
 
     currency_code = get_currency(currency_code).code
@@ -184,7 +184,13 @@ def buy(
             for code, wallet in portfolio.wallets.items()
         }
     )
-    return portfolio
+    return {
+        "portfolio": portfolio,
+        "currency_code": currency_code,
+        "amount": amount,
+        "rate": rate,
+        "total": cost,
+    }
 
 
 @log_action("SELL", verbose=True)
@@ -192,7 +198,7 @@ def sell(
     user: User,
     currency_code: str,
     amount: float,
-) -> Portfolio:
+) -> dict:
     """Продать валюту за USD по курсу из локального кеша."""
    
     currency_code = get_currency(currency_code).code
@@ -232,7 +238,13 @@ def sell(
             for code, wallet in portfolio.wallets.items()
         }
     )
-    return portfolio
+    return {
+        "portfolio": portfolio,
+        "currency_code": currency_code,
+        "amount": amount,
+        "rate": rate,
+        "total": proceeds,
+    }
 
 
 def get_portfolio_summary(user: User, base_currency: str = "USD") -> dict:

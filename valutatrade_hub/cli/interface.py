@@ -160,24 +160,34 @@ def main() -> None:
                 if current_user is None:
                     print("Сначала выполните login")
                 else:
-                    portfolio = buy(
+                    result = buy(
                         current_user, args.currency, args.amount
                     )
-                    code = args.currency.strip().upper()
-                    wallet = portfolio.get_wallet(code)
-                    print(f"Покупка выполнена: {args.amount:.4f} {code}")
+                    code = result["currency_code"]
+                    wallet = result["portfolio"].get_wallet(code)
+
+                    print(
+                        f"Покупка выполнена: {result['amount']:.4f} {code}"
+                    )
+                    print(f"Курс: {result['rate']:.8f} USD/{code}")
+                    print(f"Стоимость покупки: {result['total']:,.2f} USD")
                     print(f"Баланс {code}: {wallet.balance:.4f}")
 
             elif args.command == "sell":
                 if current_user is None:
                     print("Сначала выполните login")
                 else:
-                    portfolio = sell(
+                    result = sell(
                         current_user, args.currency, args.amount
                     )
-                    code = args.currency.strip().upper()
-                    wallet = portfolio.get_wallet(code)
-                    print(f"Продажа выполнена: {args.amount:.4f} {code}")
+                    code = result["currency_code"]
+                    wallet = result["portfolio"].get_wallet(code)
+
+                    print(
+                        f"Продажа выполнена: {result['amount']:.4f} {code}"
+                    )
+                    print(f"Курс: {result['rate']:.8f} USD/{code}")
+                    print(f"Выручка от продажи: {result['total']:,.2f} USD")
                     print(f"Баланс {code}: {wallet.balance:.4f}")
 
             elif args.command == "get-rate":
