@@ -130,6 +130,8 @@ class RatesStorage:
             current = cache["pairs"].get(pair)
 
             if current is not None:
+                if not isinstance(current, dict):
+                    raise ValueError(f"Некорректные данные курса {pair}.")
                 current_time = self._parse_time(current.get("updated_at"))
                 new_time = self._parse_time(record["timestamp"])
                 if new_time <= current_time:
