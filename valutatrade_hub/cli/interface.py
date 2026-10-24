@@ -5,6 +5,7 @@ import shlex
 import sys
 
 from valutatrade_hub.core.exceptions import (
+    ApiRequestError,
     CurrencyNotFoundError,
     InsufficientFundsError,
 )
@@ -15,6 +16,7 @@ from valutatrade_hub.core.usecases import (
     login,
     register,
     sell,
+    update_rates,
 )
 from valutatrade_hub.logging_config import setup_logging
 
@@ -53,6 +55,15 @@ def create_parser() -> argparse.ArgumentParser:
     )
     rate_parser.add_argument("--from", dest="from_code", required=True)
     rate_parser.add_argument("--to", dest="to_code", required=True)
+    update_parser = commands.add_parser(
+        "update-rates",
+        help="Обновить курсы валют",
+    )
+    update_parser.add_argument(
+        "--source",
+        choices=("coingecko", "exchangerate"),
+        help="Обновить только выбранный источник",
+    )
 
     return parser
 
@@ -159,6 +170,23 @@ def main() -> None:
                     f"(обновлено: {result['updated_at']})"
                 )
                 print(f"Обратный курс {to_code}→{from_code}: {1 / rate:.8f}")
+            elif args.command == "update-rates":
+                print("Обновление курсов...")
+                result = update_rates(args.source)
+                print(f"Обновлено курсов: {result['updated_count']}.")
+                print(f"Последнее обновление: {result['last_refresh']}")
+
+                if result["errors"]:
+                    print(
+                        "Обновление выполнено частично. "
+                        "Подробности в logs/parser.log."
+                    )
+                else:
+                    print("Обновление завершено успешно.")
+
+        except ApiRequestError as error:
+            print(error)
+            print("Проверьте сеть и API-ключ. Повторите попытку позже.")    
         except CurrencyNotFoundError as error:
             print(error)
             print("Поддерживаемые валюты: USD, EUR, GBP, RUB, BTC, ETH, SOL.")

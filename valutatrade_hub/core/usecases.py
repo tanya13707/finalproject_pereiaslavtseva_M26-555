@@ -10,6 +10,12 @@ from valutatrade_hub.core.utils import get_usd_rate, is_rate_fresh, load_rates
 from valutatrade_hub.decorators import log_action, set_action_details
 from valutatrade_hub.infra.database import DatabaseManager
 from valutatrade_hub.infra.settings import SettingsLoader
+from valutatrade_hub.parser_service.api_clients import (
+    CoinGeckoClient,
+    ExchangeRateApiClient,
+)
+from valutatrade_hub.parser_service.config import ParserConfig
+from valutatrade_hub.parser_service.updater import RatesUpdater
 
 
 def register(username: str, password: str) -> User:
@@ -288,3 +294,23 @@ def get_rate(from_code: str, to_code: str) -> dict:
         "rate": rate,
         "updated_at": updated.isoformat(),
     }
+
+
+def update_rates(source: str | None = None) -> dict:
+    """Обновить курсы из выбранного источника."""
+    config = ParserConfig()
+
+    if source is None:
+        clients = [
+            CoinGeckoClient(config),
+            ExchangeRateApiClient(config),
+        ]
+    elif source == "coingecko":
+        clients = [CoinGeckoClient(config)]
+    elif source == "exchangerate":
+        clients = [ExchangeRateApiClient(config)]
+    else:
+        raise ValueError("Источник должен быть coingecko или exchangerate.")
+
+    updater = RatesUpdater(clients=clients, config=config)
+    return updater.run_update()
