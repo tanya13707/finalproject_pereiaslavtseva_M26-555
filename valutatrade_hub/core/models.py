@@ -87,7 +87,7 @@ class Wallet:
     """Кошелёк для хранения средств в одной валюте."""
 
     def __init__(self, currency_code: str, balance: float = 0.0):
-        self.currency_code = currency_code
+        self.currency_code = get_currency(currency_code).code
         self.balance = balance
 
     @property
@@ -153,11 +153,13 @@ class Portfolio:
 
     def add_currency(self, currency_code: str) -> None:
         """Создать кошелёк, если такой валюты ещё нет."""
+        currency_code = get_currency(currency_code).code
         if currency_code not in self._wallets:
             self._wallets[currency_code] = Wallet(currency_code)
 
     def get_wallet(self, currency_code: str) -> Wallet:
         """Получить существующий кошелёк по коду валюты."""
+        currency_code = get_currency(currency_code).code
         if currency_code not in self._wallets:
             raise ValueError(f"Кошелёк для валюты {currency_code} не найден.")
         return self._wallets[currency_code]
