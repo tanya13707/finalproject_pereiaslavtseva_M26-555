@@ -5,6 +5,7 @@ import secrets
 from datetime import datetime, timezone
 
 from valutatrade_hub.core.currencies import CryptoCurrency, get_currency
+from valutatrade_hub.core.exceptions import ApiRequestError, InsufficientFundsError
 from valutatrade_hub.core.models import Portfolio, User, Wallet
 from valutatrade_hub.core.utils import get_usd_rate, is_rate_fresh, load_rates
 from valutatrade_hub.decorators import log_action, set_action_details
@@ -225,6 +226,8 @@ def sell(
             for code, wallet in portfolio.wallets.items()
         }
     )
+    if currency_code not in portfolio.wallets:
+        raise InsufficientFundsError(0.0, amount, currency_code)
     currency_wallet = portfolio.get_wallet(currency_code)
     currency_wallet.withdraw(amount)
 
@@ -272,41 +275,63 @@ def get_portfolio_summary(user: User, base_currency: str = "USD") -> dict:
 
 
 def get_rate(from_code: str, to_code: str) -> dict:
-    """Получить курс из локального кеша с проверкой свежести."""
+    """Получить курс и при необходимости обновить кеш."""
     from_code = get_currency(from_code).code
     to_code = get_currency(to_code).code
-    codes = [from_code, to_code]
-    pairs = load_rates()
     ttl = SettingsLoader().get("rates_ttl")
-    timestamps = []
 
-    for code in set(codes):
-        if code == "USD":
-            continue
+    def read_cached_rate() -> dict:
+        """Проверить кеш и рассчитать курс через USD."""
+        pairs = load_rates()
+        timestamps = []
 
-        get_usd_rate(code, pairs)
-        updated_at = pairs[f"{code}_USD"].get("updated_at")
+        for code in {from_code, to_code}:
+            if code == "USD":
+                continue
 
-        if not is_rate_fresh(updated_at, ttl):
-            raise ValueError(
-                f"Курс {code}→USD устарел или дата обновления некорректна. "
-                "Необходимо обновить курсы."
-            )
+            get_usd_rate(code, pairs)
+            updated_at = pairs[f"{code}_USD"].get("updated_at")
 
-        updated = datetime.fromisoformat(updated_at)
-        if updated.tzinfo is None:
-            updated = updated.replace(tzinfo=timezone.utc)
-        timestamps.append(updated)
+            if not is_rate_fresh(updated_at, ttl):
+                raise ValueError(f"Курс {code}→USD устарел.")
 
-    rate = get_usd_rate(from_code, pairs) / get_usd_rate(to_code, pairs)
-    updated = min(timestamps) if timestamps else datetime.now(timezone.utc)
+            updated = datetime.fromisoformat(updated_at)
+            if updated.tzinfo is None:
+                updated = updated.replace(tzinfo=timezone.utc)
+            timestamps.append(updated)
 
-    return {
-        "from_currency": from_code,
-        "to_currency": to_code,
-        "rate": rate,
-        "updated_at": updated.isoformat(),
-    }
+        rate = (
+            get_usd_rate(from_code, pairs)
+            / get_usd_rate(to_code, pairs)
+        )
+        if not math.isfinite(rate) or rate <= 0:
+            raise ValueError("Некорректный курс.")
+
+        updated = (
+            min(timestamps)
+            if timestamps
+            else datetime.now(timezone.utc)
+        )
+        return {
+            "from_currency": from_code,
+            "to_currency": to_code,
+            "rate": rate,
+            "updated_at": updated.isoformat(),
+        }
+
+    try:
+        return read_cached_rate()
+    except (ValueError, OSError):
+        pass
+
+    try:
+        update_rates()
+        return read_cached_rate()
+    except (ApiRequestError, ValueError, OSError):
+        raise ApiRequestError(
+            f"Курс {from_code}→{to_code} недоступен. "
+            "Не удалось обновить кеш. Повторите попытку позже."
+        ) from None
 
 
 def update_rates(source: str | None = None) -> dict:

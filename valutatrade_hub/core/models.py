@@ -5,6 +5,7 @@ import hmac
 import math
 from datetime import datetime
 
+from valutatrade_hub.core.currencies import get_currency
 from valutatrade_hub.core.exceptions import InsufficientFundsError
 from valutatrade_hub.core.utils import get_usd_rate, is_rate_fresh, load_rates
 from valutatrade_hub.infra.settings import SettingsLoader
@@ -166,7 +167,7 @@ class Portfolio:
         if not isinstance(base_currency, str) or not base_currency.strip():
             raise ValueError("Укажите базовую валюту.")
 
-        base_currency = base_currency.strip().upper()
+        base_currency = get_currency(base_currency).code
         pairs = load_rates()
         ttl = SettingsLoader().get("rates_ttl")
         codes = set(self._wallets) | {base_currency}
