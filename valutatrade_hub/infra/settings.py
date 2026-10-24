@@ -10,7 +10,7 @@ class SettingsLoader:
     _instance = None
 
     def __new__(cls):
-        # Singleton: все части приложения используют один объект настроек.
+        # Используем __new__: это простой способ возвращать один общий экземпляр.
         if cls._instance is None:
             instance = super().__new__(cls)
             instance._load()
@@ -25,6 +25,9 @@ class SettingsLoader:
             "default_base_currency": "USD",
             "logs_dir": "logs",
             "log_level": "INFO",
+            "log_format": "%(levelname)s %(asctime)sZ %(message)s",
+            "log_max_bytes": 1_000_000,
+            "log_backup_count": 3,
         }
 
         config_path = Path("pyproject.toml")
